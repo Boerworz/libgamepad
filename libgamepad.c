@@ -8,7 +8,7 @@
 
 #include "libgamepad.h"
 
-void gp_invoke_callback__(int controller, gp_event_type t, gp_state state, int x, int y);
+void gp_invoke_callback__(int controller, gp_event_type t, gp_state state, float x, float y);
 int gp_read__();
 int callback_index__(int controller, gp_event_type t);
 
@@ -298,7 +298,7 @@ void gp_check_right_joystick__(unsigned char *buf, unsigned char *prev_buf, int 
 	}
 }
 
-void gp_invoke_callback__(int controller, gp_event_type t, gp_state state, int x, int y) {
+void gp_invoke_callback__(int controller, gp_event_type t, gp_state state, float x, float y) {
 	dispatch_async(dispatch_get_main_queue(), ^{
 		int index = callback_index__(controller, t);
 		gp_callback callback = callbacks__[index];
@@ -309,19 +309,10 @@ void gp_invoke_callback__(int controller, gp_event_type t, gp_state state, int x
 }
 
 int gp_run() {
-	// Create a thread from which we'll
-	// read gamepad input
-	
 	dispatch_queue_t input_queue = dispatch_queue_create("input_queue", NULL);
 	dispatch_async(input_queue, ^{
 		gp_read__();				
 	});
-
-	/*pthread_t pth;
-	if(pthread_create(&pth, NULL, &gp_read__, NULL) != 0) {
-		fprintf(stderr, "libgamepad: Unable to spawn thread. Exiting.\n");
-		return -1;
-	}*/
 	return 0;
 }
 
