@@ -1,0 +1,148 @@
+=== Button values ===
+
+== buffer[3] ==
+    0 when the left keypad is pressed or the left joystick is moved left
+    255 when the right is pressed or the left joystick is moved right
+    127 when no button is pressed
+
+== buffer[4] ==
+    0 when the up keypad is pressed or the left joystick is moved up
+    255 when the down keypad is pressed or the left joystick is moved down
+    127 when no button is pressed
+
+== Numbered buttons and analog directional buttons ==
+----> Byte index: 5
+
+    Button  |  Hex  |  Dec
+    ----------------------
+    -       |  0xf  |   15
+    1       |  0x10 |   16
+    2       |  0x20 |   32
+    3       |  0x40 |   64
+    4       |  0x80 |  128
+
+NOTE: In analog mode, additional keypresses are registered:
+
+    Button  |  Hex  |  Dec
+    ----------------------
+    Up           |  0x0  |    0 
+    Up + Right   |  0x1  |    1 
+    Right        |  0x2  |    2 
+    Down + Right |  0x3  |    3 
+    Down         |  0x4  |    4 
+    Down + Left  |  0x5  |    5 
+    Left         |  0x6  |    6  
+    Left + Up    |  0x7  |    7  
+
+== Special buttons ==
+-----> Byte index: 6
+
+    Button  |  Hex  |  Dec
+    ----------------------
+    -       |  0x0  |    0 
+    L2      |  0x1  |    1 
+    R2      |  0x2  |    2 
+    L1      |  0x4  |    4 
+    R1      |  0x8  |    8  
+    Select  | 0x10  |   16  
+    Start   | 0x20  |   32  
+
+NOTE: In analog mode, additional keypresses are registered:
+
+    Button  |  Hex  |  Dec
+    ----------------------
+    L3      | 0x40  |   64 
+    R3      | 0x80  |  128 
+
+=== Analog input ===
+When analog input is enabled, the joysticks report how far they have been tilted.
+The diagram below shows the buffer values for the joystick position.
+
+
+     b4 0          b4 0                   b1 0          b1 0      
+     b3 0    b4 0  b3 255                 b2 0    b1 0  b2 255    
+        \     |     /                        \     |     /
+         \    |    /                          \    |    /
+          \   |   /                            \   |   /
+           \  |  /                              \  |  /
+            \ | /                                \ | /
+  b3 0 ------128-----> b3 255          b2 0 ------128-----> b2 255
+             /|\                                  /|\
+            / | \                                / | \
+           /  |  \                              /  |  \
+          /   |   \                            /   |   \
+         /    v    \                          /    v    \
+   b4 255   b4 255  b4 255              b1 255   b1 255  b1 255  
+   b3 0             b3 255              b2 0             b2 255  
+
+== States ==
+x 	y 	prev_x 	prev_y 	state
+=============================
+0 	0 	0 		0 		-
+-------------------------------
+0 	0 	0 		1 		release
+-------------------------------
+0 	0 	1 		0 		release
+-------------------------------
+0 	0 	1 		1 		release
+-------------------------------
+0 	1 	0 		0 		press
+-------------------------------
+0 	1 	0 		1 		repeat
+-------------------------------
+0 	1 	1 		0 		repeat
+-------------------------------
+0 	1 	1 		1 		repeat
+-------------------------------
+1 	0 	0 		0 		press
+-------------------------------
+1 	0 	0 		1 		repeat
+-------------------------------
+1 	0 	1 		0 		repeat
+-------------------------------
+1 	0 	1 		1 		repeat
+-------------------------------
+1 	1 	0 		0 		press
+-------------------------------
+1 	1 	0 		1 		repeat
+-------------------------------
+1 	1 	1 		0 		repeat
+-------------------------------
+1 	1 	1 		1 		repeat
+
+Grouped by state:
+
+x 	y 	prev_x 	prev_y 	state
+=============================
+0 	0 	0 		0 		-
+-------------------------------
+0 	1 	0 		0 		press
+-------------------------------
+1 	0 	0 		0 		press
+-------------------------------
+1 	1 	0 		0 		press
+-------------------------------
+0 	0 	0 		1 		release
+-------------------------------
+0 	0 	1 		0 		release
+-------------------------------
+0 	0 	1 		1 		release
+-------------------------------
+0 	1 	0 		1 		repeat
+-------------------------------
+0 	1 	1 		0 		repeat
+-------------------------------
+0 	1 	1 		1 		repeat
+-------------------------------
+1 	0 	0 		1 		repeat
+-------------------------------
+1 	0 	1 		0 		repeat
+-------------------------------
+1 	0 	1 		1 		repeat
+-------------------------------
+1 	1 	0 		1 		repeat
+-------------------------------
+1 	1 	1 		0 		repeat
+-------------------------------
+1 	1 	1 		1 		repeat
+
