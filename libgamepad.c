@@ -8,146 +8,27 @@
 
 #include "libgamepad.h"
 
-void gp_invoke_callback__(int controller, gp_event_type t, gp_state state, float x, float y);
-int gp_read__();
-int callback_index__(int controller, gp_event_type t);
-
 static hid_device *handle__;
 
-// Callbacks are stored in this array
-// index 0-25 are controller 1 callbacks
-// index 26-51 are controller 2 callbacks
+// Callbacks are stored in this array.
+// The first half is for controller 1
+// callbacks, and the second is for
+// controller 2 callbacks.
 static gp_callback callbacks__[(GP_RIGHT_JOYSTICK + 1) * 2];
 
-
-const char *gp_event_name(gp_event_type t) {
-	switch(t) {
-		case GP_UP:
-			return "GP_UP";
-			break;
-		case GP_RIGHT:
-			return "GP_RIGHT";
-			break;
-		case GP_DOWN:
-			return "GP_DOWN";
-			break;
-		case GP_LEFT:
-			return "GP_LEFT";
-			break;
-		case GP_SPECIAL_UP:
-			return "GP_SPECIAL_UP";
-			break;
-		case GP_SPECIAL_UP_RIGHT:
-			return "GP_SPECIAL_UP_RIGHT";
-			break;
-		case GP_SPECIAL_RIGHT:
-			return "GP_SPECIAL_RIGHT";
-			break;
-		case GP_SPECIAL_DOWN_RIGHT:
-			return "GP_SPECIAL_DOWN_RIGHT";
-			break;
-		case GP_SPECIAL_DOWN:
-			return "GP_SPECIAL_DOWN";
-			break;
-		case GP_SPECIAL_DOWN_LEFT:
-			return "GP_SPECIAL_DOWN_LEFT";
-			break;
-		case GP_SPECIAL_LEFT:
-			return "GP_SPECIAL_LEFT";
-			break;
-		case GP_SPECIAL_UP_LEFT:
-			return "GP_SPECIAL_UP_LEFT";
-			break;
-		case GP_1:
-			return "GP_1";
-			break;
-		case GP_2:
-			return "GP_2";
-			break;
-		case GP_3:
-			return "GP_3";
-			break;
-		case GP_4:
-			return "GP_4";
-			break;
-		case GP_R1:
-			return "GP_R1";
-			break;
-		case GP_R2:
-			return "GP_R2";
-			break;
-		case GP_R3:
-			return "GP_R3";
-			break;
-		case GP_L1:
-			return "GP_L1";
-			break;
-		case GP_L2:
-			return "GP_L2";
-			break;
-		case GP_L3:
-			return "GP_L3";
-			break;
-		case GP_SELECT:
-			return "GP_SELECT";
-			break;
-		case GP_START:
-			return "GP_START";
-			break;
-		case GP_LEFT_JOYSTICK:
-			return "GP_LEFT_JOYSTICK";
-			break;
-		case GP_RIGHT_JOYSTICK:
-			return "GP_RIGHT_JOYSTICK";
-			break;
-		default:
-			return "";
-	}
-	
-}
-
-const char *gp_state_name(gp_state s) {
-	switch(s) {
-		case GP_PRESS:
-			return "GP_PRESS";
-			break;
-		case GP_RELEASE:
-			return "GP_RELEASE";
-			break;
-		case GP_REPEAT:
-			return "GP_REPEAT";
-			break;
-		default:
-			return "";
-	}
-}
-
+// Private functions
 int callback_index__(int controller, gp_event_type t) {
-	return 26 * (controller - 1) + t;
+	return (GP_RIGHT_JOYSTICK + 1) * (controller - 1) + t;
 }
 
-int gp_init() {
-	if(hid_init() != 0) {
-		fprintf(stderr, "Unable to initialize hidapi. Exiting.\n");
-		return -1;
-	}
-	// Try to open the device
-	handle__ = hid_open(0x0810, 0x0001, NULL);
-	if(!handle__) {
-		return -2;
-	}
-
-	return 0;
-}
-
-int gp_register(int controller, gp_event_type event_type, gp_callback callback) {
-	if(!callback) return -1;
-	if(event_type > GP_RIGHT_JOYSTICK) return -2;
-	if(controller != 1 && controller != 2) return -3;
-
-	int index = callback_index__(controller, event_type);
-	callbacks__[index] = callback;
-	return 0;
+void gp_invoke_callback__(int controller, gp_event_type t, gp_state state, float x, float y) {
+	dispatch_async(dispatch_get_main_queue(), ^{
+		int index = callback_index__(controller, t);
+		gp_callback callback = callbacks__[index];
+		if(callback) {
+			callback(controller, t, state, x, y);
+		}
+	});
 }
 
 void gp_check_numbered__(unsigned char *buf, unsigned char *prev_buf, int controller) {
@@ -242,9 +123,6 @@ void gp_check_left_joystick__(unsigned char *buf, unsigned char *prev_buf, int c
 	if(!x_val && !y_val && !prev_x_val && !prev_y_val)
 		return;
 
-	//if(controller == 2)
-	//	printf("%f\t%f\t%f\t%f\n", x_val, y_val, prev_x_val, prev_y_val);
-
 	if((!x_val && !y_val) && (prev_x_val || prev_y_val)) {
 		// Release
 		gp_invoke_callback__(controller, GP_LEFT_JOYSTICK, GP_RELEASE, x_val, y_val);
@@ -276,9 +154,6 @@ void gp_check_right_joystick__(unsigned char *buf, unsigned char *prev_buf, int 
 	if(!x_val && !y_val && !prev_x_val && !prev_y_val)
 		return;
 
-	//if(controller == 2)
-	//	printf("%f\t%f\t%f\t%f\n", x_val, y_val, prev_x_val, prev_y_val);
-
 	if((!x_val && !y_val) && (prev_x_val || prev_y_val)) {
 		// Release
 		gp_invoke_callback__(controller, GP_RIGHT_JOYSTICK, GP_RELEASE, x_val, y_val);
@@ -298,24 +173,6 @@ void gp_check_right_joystick__(unsigned char *buf, unsigned char *prev_buf, int 
 	}
 }
 
-void gp_invoke_callback__(int controller, gp_event_type t, gp_state state, float x, float y) {
-	dispatch_async(dispatch_get_main_queue(), ^{
-		int index = callback_index__(controller, t);
-		gp_callback callback = callbacks__[index];
-		if(callback) {
-			callback(controller, t, state, x, y);
-		}
-	});
-}
-
-int gp_run() {
-	dispatch_queue_t input_queue = dispatch_queue_create("input_queue", NULL);
-	dispatch_async(input_queue, ^{
-		gp_read__();				
-	});
-	return 0;
-}
-
 static unsigned char prev_ctrl1_buf[65] = {0};
 static unsigned char prev_ctrl2_buf[65] = {0};
 
@@ -330,7 +187,7 @@ int gp_read__() {
 
 	res = hid_read(handle__, temp_buf, 65);
 	if (res < 0) {
-		printf("Unable to read()\n");
+		printf("libgamepad: Unable to read input.\n");
 		return res;
 	}
 
@@ -355,4 +212,112 @@ int gp_read__() {
 	memcpy(prev_buf, temp_buf, res);
 	
 	return res;
+}
+
+// Public functions
+
+const char *gp_event_name(gp_event_type t) {
+	switch(t) {
+		case GP_UP:
+			return "GP_UP";
+		case GP_RIGHT:
+			return "GP_RIGHT";
+		case GP_DOWN:
+			return "GP_DOWN";
+		case GP_LEFT:
+			return "GP_LEFT";
+		case GP_SPECIAL_UP:
+			return "GP_SPECIAL_UP";
+		case GP_SPECIAL_UP_RIGHT:
+			return "GP_SPECIAL_UP_RIGHT";
+		case GP_SPECIAL_RIGHT:
+			return "GP_SPECIAL_RIGHT";
+		case GP_SPECIAL_DOWN_RIGHT:
+			return "GP_SPECIAL_DOWN_RIGHT";
+		case GP_SPECIAL_DOWN:
+			return "GP_SPECIAL_DOWN";
+		case GP_SPECIAL_DOWN_LEFT:
+			return "GP_SPECIAL_DOWN_LEFT";
+		case GP_SPECIAL_LEFT:
+			return "GP_SPECIAL_LEFT";
+		case GP_SPECIAL_UP_LEFT:
+			return "GP_SPECIAL_UP_LEFT";
+		case GP_1:
+			return "GP_1";
+		case GP_2:
+			return "GP_2";
+		case GP_3:
+			return "GP_3";
+		case GP_4:
+			return "GP_4";
+		case GP_R1:
+			return "GP_R1";
+		case GP_R2:
+			return "GP_R2";
+		case GP_R3:
+			return "GP_R3";
+		case GP_L1:
+			return "GP_L1";
+		case GP_L2:
+			return "GP_L2";
+		case GP_L3:
+			return "GP_L3";
+		case GP_SELECT:
+			return "GP_SELECT";
+		case GP_START:
+			return "GP_START";
+		case GP_LEFT_JOYSTICK:
+			return "GP_LEFT_JOYSTICK";
+		case GP_RIGHT_JOYSTICK:
+			return "GP_RIGHT_JOYSTICK";
+		default:
+			return "";
+	}
+	
+}
+
+const char *gp_state_name(gp_state s) {
+	switch(s) {
+		case GP_PRESS:
+			return "GP_PRESS";
+		case GP_RELEASE:
+			return "GP_RELEASE";
+		case GP_REPEAT:
+			return "GP_REPEAT";
+		default:
+			return "";
+	}
+}
+
+int gp_init() {
+	if(hid_init() != 0) {
+		fprintf(stderr, "libgamepad: Unable to initialize hidapi. Exiting.\n");
+		return -1;
+	}
+
+	// Try to open the device
+	handle__ = hid_open(0x0810, 0x0001, NULL);
+	if(!handle__) {
+		return -2;
+	}
+
+	return 0;
+}
+
+int gp_register(int controller, gp_event_type event_type, gp_callback callback) {
+	if(!callback) return -1;
+	if(event_type > GP_RIGHT_JOYSTICK) return -2;
+	if(controller != 1 && controller != 2) return -3;
+
+	int index = callback_index__(controller, event_type);
+	callbacks__[index] = callback;
+	return 0;
+}
+
+int gp_run() {
+	dispatch_queue_t input_queue = dispatch_queue_create("input_queue", NULL);
+	dispatch_async(input_queue, ^{
+		gp_read__();				
+	});
+	return 0;
 }
